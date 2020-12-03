@@ -183,6 +183,11 @@ async def _send_log_entry(log_entry, context):
         "log_group_name": context.log_group_name,
         "log_stream_name": context.log_stream_name,
     }
+    
+    """
+    Adjust logs for Greengrass
+    """
+    _greengrass_adjustment(log_entry)
 
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
         # Both Infrastructure and Logging require a "LICENSE_KEY" environment variable.
@@ -474,7 +479,18 @@ def _split_log_payload(payload):
 def _reconstruct_log_payload(common, logs):
     return [{"common": common, "logs": logs}]
 
-
+def _greengrass_adjustment(log_entry):
+    """
+    Adjust payload for greengrass
+    """
+    for logEvent in log_entry["logEvents"]:
+        if 'NR_LAMBDA_MONITORING' in logEvent['message']:
+            m = re.match(r'.*\[([^Z]+Z)\][^,]+,(.*)',logEvent['message'])
+            if m:
+                g = m.groups()
+                logEvent['timestamp'] = int(datetime.datetime.strptime(g[0], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()*1000);
+                logEvent['message'] = g[1]
+            
 ####################
 #  Lambda handler  #
 ####################
@@ -492,6 +508,7 @@ def lambda_handler(event, context):
     log_entry_str = gzip.decompress(event_data).decode("utf-8")
     log_entry = json.loads(log_entry_str)
 
+    print (log_entry)
     # output additional helpful info if debug logging is enabled
     # not enabled by default since parsing into json might be slow
     if _debug_logging_enabled():
