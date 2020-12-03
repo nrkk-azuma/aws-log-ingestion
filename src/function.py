@@ -508,7 +508,6 @@ def lambda_handler(event, context):
     log_entry_str = gzip.decompress(event_data).decode("utf-8")
     log_entry = json.loads(log_entry_str)
 
-    print (log_entry)
     # output additional helpful info if debug logging is enabled
     # not enabled by default since parsing into json might be slow
     if _debug_logging_enabled():
